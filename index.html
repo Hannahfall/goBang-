@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        html {
+            background:#018DED url(./background.jpg);
+            background-size:cover;
+        }
+        canvas {
+            display: block;
+            margin: 50px auto;
+            
+        }
+        #newgamebutton{
+            display:block;
+            margin:20px auto;
+
+            width:100px;
+            padding:10px 10px;
+            background-color:#8f7a66;
+
+            font-family:Arial;
+            color:white;
+
+            border-radius:10px;
+            text-decoration:none;
+        }
+    </style>
+    <title>gobang</title>
+</head>
+<body>
+    <canvas id="chess" width="450px" height="450px"></canvas>
+    <div id="newgamebutton" onclick="startGame()" >startGame!</div>
+</body>
+
+<script>
+    var canvas = document.getElementById('chess');
+    var ctx = canvas.getContext('2d');
+    var chessBoard = []; //存储棋盘信息的二维数组
+    var over = false; //游戏是否结束
+    var me = true; //为true时轮到用户下棋
+
+    var wins = []; //数组结构为棋子的[x坐标][y坐标][赢法计数]
+    var count = 0; //赢法计数器count要设置为全局变量
+    var myWin = []; //赢法统计数组
+    var computerWin = [];
+
+
+    //#region 【创建赢法统计数组】
+    //初始化三维数组
+    for(var i = 0; i < 15; i++){
+        wins[i] = [];
+        for(var j = 0; j < 15; j++){
+            wins[i][j] = [];
+        }
+    }
+
+    //横线赢法
+    for(var i = 0; i < 15; i++){
+        for(var j = 0; j < 11; j++){
+            for(var k = 0; k < 5; k++){
+                wins[j+k][i][count] = true; //变x坐标，横向上连成五颗
+            }
+            count++;
+        }
+    } 
+    //纵线赢法
+    for(var i = 0; i < 15; i++){
+        for(var j = 0; j < 11; j++){
+            for(var k = 0; k < 5; k++){
+                wins[i][j+k][count] = true; //变y坐标，纵向上连成五颗
+            }
+            count++;
+        }
+    }
+    //左上-右下斜线赢法
+    for(var i = 0; i < 11; i++){         //循环行数或列数
+        for(var j = 0; j < 11; j++){     //循环每一行/列上的棋子数（确定起始点）
+            for(var k = 0; k < 5; k++){  //连出五颗棋子
+                wins[j+k][i+k][count] = true;
+            }
+            count++;
+        }
+    }
+    //左下-右上斜线赢法
+    for(var i = 0; i < 11; i++){         //循环行数或列数
+        for(var j = 14; j > 3; j--){     //循环每一行/列上的棋子数（确定起始点）
+            for(var k = 0; k < 5; k++){  //连出五颗棋子
+                wins[i+k][j-k][count] = true;
+            }
+            count++;
+        }
+    }
+    //#endregion
+
+    //【绘制棋盘】
+    function drawChess() {
+        for(var i =0; i < 15; i++){
+            ctx.strokeStyle = '#BFBFBF';
+            ctx.beginPath();
+            ctx.moveTo(15 , 15+i*30);
+            ctx.lineTo(canvas.width - 15, 15 + i * 30);
+            ctx.stroke();
+
+            ctx.beginPath();
+            ctx.moveTo(15+i*30 , 15);
+            ctx.lineTo(15+i*30 , canvas.height - 15);
+            ctx.stroke();
+        }
+    }
+    //【清除棋盘】
+    function cleanChess(){
+        ctx.fillStyle = '#FFFFFF';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+    }
+    //【绘制棋子】
+    function oneStep(i,j,me){
+        ctx.beginPath();
+        ctx.arc(15+i*30, 15+j*30, 13, 0, 2*Math.PI);
+        ctx.closePath();
+        var gradient = ctx.createRadialGradient(15 + i * 30 + 2, 15 + j * 30 - 2, 13, 15 + i * 30 + 2, 15 + j * 30 - 2, 0);
+        if (me) {
+            gradient.addColorStop(0, "#D1D1D1");
+            gradient.addColorStop(1, "#F9F9F9");
+        } else {
+            gradient.addColorStop(0, "#0A0A0A");
+            gradient.addColorStop(1, "#636766");
+        };
+        ctx.fillStyle = gradient;
+        ctx.fill();
+    }
+
+    //【开始按钮】
+    function startGame(){
+        //清除棋盘
+        cleanChess();
+        //绘制棋盘
+        drawChess();
+        me = true;
+        over = false;
+        //初始化chessBoard
+        for(var i = 0; i < 15; i++){
+            chessBoard[i] = [];
+            for(var j = 0; j < 15; j++){
+                chessBoard[i][j] = 0;
+            }
+        }
+        
+        //初始化赢法数组
+        for(var i = 0; i<count; i++){
+           myWin[i] = 0;
+           computerWin[i] = 0;
+        }
+
+        //电脑先行，（7,7）处绘制黑棋
+        oneStep(7,7,false);
+        chessBoard[7][7] = 2;
+    }
+   
+    //【鼠标点击事件——用户下棋】
+    canvas.onclick = function(e){
+        if(over){
+            return
+        };
+
+        var x = e.offsetX;
+        var y = e.offsetY;
+        var i = Math.floor(x / 30);
+        var j = Math.floor(y / 30);
+
+        //玩家绘制棋子
+        if(chessBoard[i][j] === 0){
+            oneStep(i,j,me);
+            chessBoard[i][j] = 1;
+
+            for(var k = 0; k < count; k++){
+                if(wins[i][j][k]){
+                    myWin[k] ++;
+                    computerWin[k] = 6;
+
+                    if(myWin[k] === 5){
+                        window.alert('You Win!');
+                        over = true;
+                    }
+                }
+            }
+
+
+            if(!over){
+                me = !me;
+                aiGo();
+            }
+        }
+    }
+
+    //【电脑下棋】
+    function aiGo(){
+        if(over){
+            return
+        }
+
+        var u = 0; //电脑落子的横坐标
+        var v = 0; //纵坐标
+        var myScore = []; //玩家分数
+        var aiScore = []; //电脑分数 
+        var max = 0; //最优位置的分
+
+        //初始化分数的二维数组
+        for(var i = 0; i < 15; i++){
+            myScore[i] = [];
+            aiScore[i] = [];
+            for(var j = 0; j < 15; j++){
+                myScore[i][j] = 0;
+                aiScore[i][j] = 0;
+            }
+        };
+
+        //通过赢法数组为两个二维数组分别计分
+        for(var i = 0; i < 15; i++){
+            for(var j = 0; j < 15; j++){
+                if(chessBoard[i][j] === 0){
+                    for(var k = 0; k < count; k++){
+                        if(wins[i][j][k]){
+                            //玩家分数
+                            if(myWin[k] == 1){
+                                myScore[i][j] += 200;
+                            }else if (myWin[k] == 2) {
+                                myScore[i][j] += 400;
+                            } else if (myWin[k] == 3) {
+                                myScore[i][j] += 2000;
+                            } else if (myWin[k] == 4) {
+                                myScore[i][j] += 10000;
+                            };
+                            //电脑分数
+                            if(computerWin[k] == 1){
+                                aiScore[i][j] += 220;
+                            }else if (computerWin[k] == 2){
+                                aiScore[i][j] += 420;
+                            }else if (computerWin[k] == 3) {
+                                aiScore[i][j] += 2200;
+                            } else if (computerWin[k] == 4) {
+                                aiScore[i][j] += 20000;
+                            }
+                        }
+                    }
+                }
+
+                //如果玩家分数比最优要大，则落在该处
+                if(myScore[i][j] > max) {
+                    max = myScore[i][j];
+                    u = i;
+                    v = j;
+                }else if(myScore[i][j] == max){
+                    //若分数相等，则比较电脑在该位置与预落子的位置的分数
+                    if(aiScore[i][j] > aiScore[u][v]){
+                        u = i;
+                        v = j;
+                    }
+                };
+
+                // 如果电脑(i,j)处比目前最优的分数大，则落子在(i,j)处
+                if(aiScore[i][j] > max) {
+                    max = aiScore[i][j];
+                    u = i;
+                    v = j;
+                }else if(aiScore[i][j] == max){
+                    //若分数相等，则比较用户在该位置与预落子的位置的分数
+                    if(myScore[i][j] > myScore[u][v]){
+                        u = i;
+                        v = j;
+                    }
+                }
+
+            }
+        }
+
+        oneStep(u , v , false);
+        chessBoard[u][v] = 2;
+
+        for(var k = 0; k < count; k++){
+            if(wins[u][v][k]){
+                computerWin[k] ++;
+                myWin[k] = 6;
+                if(computerWin[k] === 5){
+                    window.alert("You Fail!")
+                    over = true; 
+                }
+            }
+        }
+
+        if(!over){
+            me = !me;
+        }
+    }
+   
+</script>
+</html>
